@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0612">
+<title>CYBER WEATHER // 赛博天气终端</title>
+
+<!-- 标题字体 Orbitron（科技感）+ Rajdhani（窄体数字），国内访问失败时自动回退到中文系统字体 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body data-weather="default">
+
+<!-- ===== 背景层：两层渐变做 0.8s 交叉淡入（雨天切蓝）+ 网格线 ===== -->
+<div class="bg-layer base" aria-hidden="true"></div>
+<div class="bg-layer rain" aria-hidden="true"></div>
+<div class="bg-layer snow" aria-hidden="true"></div>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<!-- ===== 开机扫描线：一次性 0.6s 上电动画，播完由 JS 移除 ===== -->
+<div class="boot" id="boot" aria-hidden="true"><span class="boot-line"></span></div>
+
+<header class="topbar">
+  <h1 class="glitch" data-text="CYBER WEATHER">CYBER WEATHER</h1>
+  <p class="tagline">// NEON FORECAST TERMINAL · 数据源 和风天气 QWeather</p>
+</header>
+
+<!-- ===== 搜索区：输入联想 + 定位按钮 + 最近搜索霓虹标签 ===== -->
+<section class="panel search-panel">
+  <div class="search-row">
+    <div class="search-box" id="search-box" role="combobox" aria-haspopup="listbox"
+         aria-owns="suggest-list" aria-expanded="false">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input id="city-input" type="text" placeholder="搜索城市，如 上海 / 成都 / Tokyo"
+             autocomplete="off" spellcheck="false"
+             aria-label="城市搜索" aria-controls="suggest-list" aria-autocomplete="list">
+      <span class="search-spinner" id="search-spinner" hidden aria-hidden="true"></span>
+    </div>
+
+    <!-- 定位按钮：带脉冲光效 -->
+    <button id="geo-btn" class="geo-btn pulse" type="button" title="定位我的位置" aria-label="定位我的位置">
+      <span aria-hidden="true">◎</span>
+    </button>
+  </div>
+
+  <!-- 联想下拉：键盘 ↑↓ + Enter 可选，role=listbox -->
+  <ul class="suggest" id="suggest-list" role="listbox" aria-label="城市候选" hidden></ul>
+
+  <div class="recent" id="recent" aria-label="最近搜索的城市"></div>
+</section>
+
+<!-- ===== 下雨提醒条：可关闭的霓虹警示 ===== -->
+<div class="alert" id="alert" role="status" hidden>
+  <span class="alert-icon" aria-hidden="true">⚡</span>
+  <span class="alert-text" id="alert-text"></span>
+  <button class="alert-close" id="alert-close" type="button" aria-label="关闭提醒">✕</button>
+</div>
+
+<main class="layout">
+
+  <!-- ===== 当前天气 ===== -->
+  <section class="card current" id="card-current">
+    <div class="particles" id="particles" aria-hidden="true"></div>
+
+    <div class="card-head">
+      <span class="dot" aria-hidden="true"></span>
+      <h2>当前天气</h2>
+      <span class="card-meta" id="obs-time">--</span>
+    </div>
+
+    <div class="current-body">
+      <!-- emoji 舞台：漂浮 + 呼吸缩放 -->
+      <div class="emoji-stage" id="emoji-stage">
+        <span class="wx-emoji" id="wx-emoji">☀️</span>
+      </div>
+
+      <div class="temp-block">
+        <div class="temp-row">
+          <span class="temp-value" id="temp">--</span><span class="temp-unit">°C</span>
+        </div>
+        <div class="temp-desc" id="wx-text">加载中…</div>
+        <div class="temp-sub" id="city-label">--</div>
+      </div>
+    </div>
+
+    <ul class="metrics">
+      <li><span class="k">体感</span><span class="v" id="feels">--</span></li>
+      <li><span class="k">湿度</span><span class="v" id="humidity">--</span></li>
+      <li><span class="k">风速</span><span class="v" id="wind">--</span></li>
+      <li><span class="k">降水</span><span class="v" id="precip">--</span></li>
+    </ul>
+  </section>
+
+  <!-- ===== 日出日落：半圆轨道 + 光点 ===== -->
+  <section class="card sun-card">
+    <div class="card-head">
+      <span class="dot" aria-hidden="true"></span>
+      <h2>日出日落</h2>
+      <span class="card-meta" id="day-length">--</span>
+    </div>
+
+    <div class="sun-wrap">
+      <div class="sun-track" id="sun-track">
+        <div class="sun-arc" aria-hidden="true"></div>
+        <div class="sun-dot" id="sun-dot" hidden></div>
+      </div>
+      <div class="sun-times">
+        <div class="sun-col"><span class="k">日出</span><span class="v" id="sunrise">--:--</span></div>
+        <div class="sun-col mid"><span class="k">白昼进度</span><span class="v" id="day-progress">--</span></div>
+        <div class="sun-col right"><span class="k">日落</span><span class="v" id="sunset">--:--</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 7 天预报 ===== -->
+  <section class="card forecast">
+    <div class="card-head">
+      <span class="dot" aria-hidden="true"></span>
+      <h2>7 天预报</h2>
+      <span class="card-meta">MAX / MIN</span>
+    </div>
+    <ul class="fc-list" id="fc-list"></ul>
+  </section>
+
+</main>
+
+<footer class="footer">
+  数据来源：和风天气 QWeather · 课程作业演示用 · 无后端，纯前端直连
+</footer>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+
+<script src="script.js"></script>
+</body>
+</html>
